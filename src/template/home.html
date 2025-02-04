@@ -2,12 +2,14 @@
 <html>
   <head>
     <title>Query Tracker</title>
+    <!-- Include htmx from CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
   </head>
   <body>
     <h1>Welcome to Query Tracker</h1>
 
-    <!-- Form to submit a query -->
-    <form id="queryForm">
+    <!-- Form to submit a query using htmx -->
+    <form hx-post="/query" hx-target="#log" hx-swap="beforeend">
       <input
         type="text"
         name="query_text"
@@ -18,49 +20,9 @@
       <button type="submit">Submit</button>
     </form>
 
-    <!-- Div to display previous queries and their responses -->
-    <div id="log"></div>
-
-    <script>
-      // Handle form submission via fetch (async/await is supported in modern browsers)
-      document
-        .getElementById("queryForm")
-        .addEventListener("submit", async function (event) {
-          event.preventDefault();
-          const queryText = document.getElementById("query_text").value;
-          const response = await fetch("/query", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query_text: queryText }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            prependLogEntry(data);
-            document.getElementById("query_text").value = "";
-          }
-        });
-
-      // Prepend a new log entry to the log div.
-      function prependLogEntry(entry) {
-        const logDiv = document.getElementById("log");
-        const entryDiv = document.createElement("div");
-        entryDiv.textContent = `${entry.created_at}\tQuery: ${entry.query_text}\tResponse: ${entry.response_text}`;
-        logDiv.prepend(entryDiv);
-      }
-
-      // Load existing log entries on page load.
-      async function loadLogs() {
-        const response = await fetch("/log");
-        if (response.ok) {
-          const logs = await response.json();
-          logs.forEach((entry) => {
-            const entryDiv = document.createElement("div");
-            entryDiv.textContent = `Query: ${entry.query_text} | Response: ${entry.response_text}`;
-            document.getElementById("log").appendChild(entryDiv);
-          });
-        }
-      }
-      window.onload = loadLogs;
-    </script>
+    <!-- Div to display log entries -->
+    <div id="log">
+      {% for entry in logs %} {% include 'log_entry.html' %} {% endfor %}
+    </div>
   </body>
 </html>

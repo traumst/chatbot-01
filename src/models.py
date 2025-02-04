@@ -1,11 +1,15 @@
+"""Models that define the data format in tables"""
+
+import datetime
 from sqlalchemy import Column, Integer, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-import datetime
 
 Base = declarative_base()
 
 
 class QueryLog(Base):
+    """Represents request-response pair"""
+
     __tablename__ = "query_logs"
 
     id = Column(Integer, primary_key=True, index=True)
