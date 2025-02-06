@@ -1,3 +1,5 @@
+"""Connector class that also sets up the DB"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

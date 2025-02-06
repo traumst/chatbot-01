@@ -1,13 +1,24 @@
 """Web server exposing cached queries"""
 
-from typing import List, Optional
+import logging
+import datetime
+from typing import Generator, List, Optional
 from fastapi import FastAPI, Query, Request, Depends, Form, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 import uvicorn
 from src import models, schemas, history
 from src.database import engine, SessionLocal
+
+timestamp = datetime.datetime.now().isoformat()
+
+log = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='server.log',
+    level=logging.INFO)
+log.warning("Logging enabled with level %s", log.level)
 
 app = FastAPI(title="LLM Query API", version="1.0")
 templates = Jinja2Templates(directory="src/template")
@@ -17,8 +28,19 @@ templates = Jinja2Templates(directory="src/template")
 models.Base.metadata.create_all(bind=engine)
 
 
-def get_db():
-    """Helper function that provides active DB connection"""
+def validate_query(query_text: str = Form(...)) -> Generator[schemas.QueryRequest, None, None]:
+    """Middleware that validates the input query"""
+
+    try:
+        yield schemas.QueryRequest(query=query_text)
+    except ValidationError as e:
+        log.error("Query validation failed, %s", e)
+        yield None
+
+
+def get_db() -> Generator[Session, None, None]:
+    """Middleware that provides active DB connection"""
+
     db = SessionLocal()
     try:
         yield db
@@ -29,13 +51,11 @@ def get_db():
 @app.post("/query", response_class=HTMLResponse)
 async def create_query(
     request: Request,
-    query_text: str = Form(...),
+    query_data: schemas.QueryRequest = Depends(validate_query),
     db: Session = Depends(get_db)
 ):
     """Simulate processing by reversing the query text"""
-
-    response_text = query_text[::-1]
-    query_data = schemas.QueryRequest(query_text=query_text)
+    response_text = query_data.query[::-1]
     db_log = history.create_query_log(
         db, query_data, response_text=response_text)
 
@@ -44,7 +64,7 @@ async def create_query(
 
 @app.get("/home", response_class=HTMLResponse)
 async def read_home(request: Request, db: Session = Depends(get_db)):
-    """home page with previous queries"""
+    """Home page, displaying past queries"""
 
     logs = history.get_query_logs(db, skip=0, limit=10)
 
@@ -56,7 +76,7 @@ async def read_log(
         query_id: Optional[int] = Query(None),
         from_offset: Optional[int] = Query(0, alias="from"),
         db: Session = Depends(get_db)):
-    """get one or more queries from the log"""
+    """Get one or more queries from the log"""
 
     log_entries: List[models.QueryLog] = []
     if query_id is None:
