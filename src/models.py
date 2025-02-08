@@ -15,4 +15,4 @@ class QueryLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     query_text = Column(Text, nullable=False)
     response_text = Column(Text)  # Could be null until processed
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))

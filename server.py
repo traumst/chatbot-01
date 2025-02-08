@@ -1,16 +1,19 @@
 """Web server exposing cached queries"""
 
-import logging
 import datetime
-from typing import Generator, List, Optional
-from fastapi import FastAPI, Query, Request, Depends, Form, HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from pydantic import ValidationError
-from sqlalchemy.orm import Session
+import logging
+from typing import List, Optional
+
 import uvicorn
-from src import models, schemas, history
-from src.database import engine, SessionLocal
+from fastapi import FastAPI, Query, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from src import history
+from src.models import QueryLog
+from src.schemas.query_request import QueryRequest
+from src.schemas.query_response import QueryResponse
 from src.middleware import get_db, validate_query
 
 timestamp = datetime.datetime.now().isoformat()
@@ -27,10 +30,11 @@ templates = Jinja2Templates(directory="src/template")
 @app.post("/query", response_class=HTMLResponse)
 async def create_query(
     request: Request,
-    query_data: schemas.QueryRequest = Depends(validate_query),
+    query_data: QueryRequest = Depends(validate_query),
     db: Session = Depends(get_db)
 ):
     """Simulate processing by reversing the query text"""
+
     response_text = query_data.query[::-1]
     db_log = history.create_query_log(
         db, query_data, response_text=response_text)
@@ -42,27 +46,30 @@ async def create_query(
 async def read_home(request: Request, db: Session = Depends(get_db)):
     """Home page, displaying past queries"""
 
-    logs = history.get_query_logs(db, skip=0, limit=10)
+    logs: List[QueryLog] = history.get_query_logs(db, skip=0, limit=10)
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
 
-@app.get("/log", response_model=List[schemas.QueryResponse])
+@app.get("/log", response_model=List[QueryResponse])
 async def read_log(
-        query_id: Optional[int] = Query(None),
-        from_offset: Optional[int] = Query(0, alias="from"),
-        db: Session = Depends(get_db)):
+    query_id: Optional[int] = Query(None),
+    from_offset: Optional[int] = Query(0, alias="from"),
+    db: Session = Depends(get_db)
+) -> List[QueryLog]:
     """Get one or more queries from the log"""
 
-    log_entries: List[models.QueryLog] = []
-    if query_id is None:
-        log_entries = history.get_query_logs(db, skip=from_offset)
-    else:
-        log_entries = [history.get_query_log(db, query_id=query_id)]
-        if len(log_entries) == 0:
+    logs: List[QueryLog]
+    if query_id is not None:
+        logs = [history.get_query_log(db, query_id=query_id)]
+        if len(logs) == 0:
             raise HTTPException(status_code=404, detail="Query not found")
+    elif from_offset is not None:
+        logs = history.get_query_logs(db, skip=from_offset)
+    else:
+        logs = history.get_query_logs(db, skip=0, limit=10)
 
-    return log_entries
+    return logs
 
 # Run the server (only if this script is run directly)
 if __name__ == "__main__":
