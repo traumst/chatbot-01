@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import uvicorn
 from src import models, schemas, history
 from src.database import engine, SessionLocal
+from src.middleware import get_db, validate_query
 
 timestamp = datetime.datetime.now().isoformat()
 
@@ -22,31 +23,6 @@ log.warning("Logging enabled with level %s", log.level)
 
 app = FastAPI(title="LLM Query API", version="1.0")
 templates = Jinja2Templates(directory="src/template")
-
-
-# Create database tables (for demo; in production use Alembic migrations)
-models.Base.metadata.create_all(bind=engine)
-
-
-def validate_query(query_text: str = Form(...)) -> Generator[schemas.QueryRequest, None, None]:
-    """Middleware that validates the input query"""
-
-    try:
-        yield schemas.QueryRequest(query=query_text)
-    except ValidationError as e:
-        log.error("Query validation failed, %s", e)
-        yield None
-
-
-def get_db() -> Generator[Session, None, None]:
-    """Middleware that provides active DB connection"""
-
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @app.post("/query", response_class=HTMLResponse)
 async def create_query(
