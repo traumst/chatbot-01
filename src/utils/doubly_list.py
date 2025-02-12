@@ -1,9 +1,8 @@
 """Implementation of a doubly linked list"""
 from typing import Optional, TypeVar, Union
-
 from pydantic import BaseModel
 
-T = TypeVar(name="T", bound=Union[int, str])
+T = TypeVar(name="T")
 
 class Node(BaseModel):
     """Doubly-linked node"""
@@ -32,6 +31,10 @@ class DLL(BaseModel):
         self.tail = node
         self.len = 1
         return node
+
+
+    def length(self) -> int:
+        return self.len
 
 
     def push_head(self, value: T) -> Node:
