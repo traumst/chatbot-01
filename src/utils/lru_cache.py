@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
-from doubly_list import DLL, T, Node
+from src.utils.doubly_list import DLL, T, Node
 
 class LRUItem(BaseModel):
     key: str

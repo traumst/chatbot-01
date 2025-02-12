@@ -1,5 +1,5 @@
 from unittest import main, TestCase
-from doubly_list import DLL, Node
+from src.utils.doubly_list import DLL, Node
 
 class TestDoublyList(TestCase):
 
