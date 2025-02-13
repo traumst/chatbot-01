@@ -20,6 +20,8 @@
         name="query_text"
         id="query_text"
         placeholder="Enter your query"
+        minlength="5"
+        maxlength="128"
         required
       />
       <button type="submit">Send</button>
@@ -27,9 +29,7 @@
 
     <!-- Reset form on page load -->
     <script>
-      document.addEventListener('htmx:afterRequest', function(evt) {
-        evt.target.reset();
-      });
+      document.addEventListener('htmx:afterRequest', evt => evt.target.reset());
     </script>
 
     <!-- Div to display log entries -->
