@@ -1,6 +1,7 @@
 """Implementation of a doubly linked list"""
-from typing import Optional, TypeVar, Union
-from pydantic import BaseModel
+import os
+from typing import Optional, TypeVar
+from pydantic import BaseModel, Field
 
 T = TypeVar(name="T")
 
@@ -16,7 +17,8 @@ class DLL(BaseModel):
     head: Optional[Node] = None
     tail: Optional[Node] = None
     len: int = 0
-    size: int = 0 # 0 for unlimited
+    # use size 0 for unlimited
+    size: int
 
 
     def __is_first__(self):

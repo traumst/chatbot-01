@@ -1,10 +1,10 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 
 
 class QueryRequest(BaseModel):
     """Request format accepted by the API"""
 
-    query: str = None
+    query: str = Field(..., min_length=5, max_length=128)
 
     @classmethod
     @field_validator("query")

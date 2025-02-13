@@ -1,7 +1,6 @@
 """Web server exposing cached queries"""
 
 import datetime
-
 from typing import List, Optional
 
 import uvicorn
@@ -11,15 +10,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from src import history
+from src.middleware import get_db, validate_query
 from src.models import QueryLog
 from src.schemas.query_request import QueryRequest
 from src.schemas.query_response import QueryResponse
-from src.middleware import get_db, validate_query
+from src.utils.env_config import read_env, EnvConfig
 from src.utils.logger import logger
 from src.utils.lru_cache import LRUCache
 
+runtime_config: EnvConfig = read_env()
 templates = Jinja2Templates(directory="src/template")
-query_cache = LRUCache(size=100)
+query_cache: LRUCache = LRUCache(size=runtime_config.cache_size)
 
 router = APIRouter()
 
@@ -79,11 +80,13 @@ async def read_log(
 
 app = FastAPI(title="LLM Query API", version="1.0")
 app.include_router(router)
+
+
 # Run the server (only if this script is run directly)
 if __name__ == "__main__":
     uvicorn.run(
         "server:app",
-        host="0.0.0.0",
-        port=7654,
+        host=runtime_config.host,
+        port=runtime_config.port,
         proxy_headers=True,
         reload=True)
