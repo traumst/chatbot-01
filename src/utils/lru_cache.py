@@ -1,7 +1,10 @@
+import logging
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
 from src.utils.doubly_list import DLL, T, Node
+
+logger = logging.getLogger(__name__)
 
 class LRUItem(BaseModel):
     key: str
@@ -38,7 +41,7 @@ class LRUCache(BaseModel):
     def len(self) -> int:
         return self.stack.len
 
-    def __have_vacancy__(self) -> bool:
+    def __has_vacancy__(self) -> bool:
         """is there room for one more?"""
         return self.stack.len < self.size
 
@@ -79,9 +82,9 @@ class LRUCache(BaseModel):
 
     def put(self, key: str, value: T) -> None:
         """pushing one too many elements triggers purge"""
-        if not self.__have_vacancy__():
+        if not self.__has_vacancy__():
             change = self.__purge__()
-            print(f"purged from {change[0]} to {change[1]}")
+            logger.info(f"purged from {change[0]} to {change[1]}")
 
         if key in self.dic:
             item: LRUItem = self.dic[key]

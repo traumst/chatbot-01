@@ -1,13 +1,17 @@
+import logging
 from typing import Generator
 from fastapi import Form
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
-from src.database import SessionLocal
+
+from src.db.database import SessionLocal
 from src.schemas.query_request import QueryRequest
-from src.utils.logger import logger
+from src.utils.env_config import EnvConfig, read_env
 from src.utils.lru_cache import LRUCache
 
-cache = LRUCache(size=4, purge_ratio=0.5)
+logger = logging.getLogger(__name__)
+runtime_config: EnvConfig = read_env()
+cache = LRUCache(size=runtime_config.cache_size, purge_ratio=0.5)
 
 def validate_query(query_text: str = Form(...)) -> Generator[QueryRequest, None, None]:
     """Middleware that validates the input query"""

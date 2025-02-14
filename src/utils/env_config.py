@@ -1,4 +1,7 @@
+import logging
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 class EnvConfig(BaseModel):
     host: str = "0.0.0.0"
@@ -14,7 +17,10 @@ class EnvConfig(BaseModel):
         if kv_line.startswith("#"):
             return None
         [key, val] = kv_line.split("=", 1)
-        match key.lower():
+        conf_key = key.lower()
+        if conf_key.endswith(","):
+            logger.warning(f"Env config value maybe broken, {key}={val}")
+        match conf_key:
             case "host":
                 self.host = val
             case "port":
@@ -22,7 +28,7 @@ class EnvConfig(BaseModel):
             case "cache_size":
                 self.cache_size = int(val)
             case _:
-                print(f"Unsupported env config key, {key}={val}")
+                logger.warning(f"Unsupported env config key, {key}={val}")
 
 def read_env() -> EnvConfig | None:
     conf = EnvConfig()
