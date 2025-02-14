@@ -25,7 +25,6 @@ logging.basicConfig(
     format="%(levelname)s: %(asctime)s @%(name)s: %(message)s",
     datefmt="[%Y-%m-%dT%H:%M:%S]",
     handlers=[
-        # TODO add date to name
         RichHandler(show_time=False, show_level=False, show_path=False)
         # logging.FileHandler(f"general.log"),
         # logging.StreamHandler(sys.stdout),

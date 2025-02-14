@@ -2,7 +2,7 @@
 
 from typing import cast, List
 from sqlalchemy.orm import Session
-from src.models import QueryLog
+from src.db.models import QueryLog
 from src.schemas.query_request import QueryRequest
 
 
