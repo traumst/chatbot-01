@@ -8,11 +8,11 @@
   <body>
     <h1>Welcome to Query Tracker</h1>
 
-    <!-- Form to submit a query using htmx -->
+    <!-- submit query using htmx -->
     <form
       hx-post="/query"
-      hx-target="#log"
-      hx-swap="beforeend"
+      hx-target="#query_log"
+      hx-swap="afterbegin"
     >
       <label for="query_text">Ask model:</label>
       <input
@@ -27,13 +27,12 @@
       <button type="submit">Send</button>
     </form>
 
-    <!-- Reset form on page load -->
+    <!-- reset input on page load -->
     <script>
       document.addEventListener('htmx:afterRequest', evt => evt.target.reset());
     </script>
 
-    <!-- Div to display log entries -->
-    <div id="log">
+    <div id="query_log">
       {% for entry in logs %} {% include 'log_entry.html' %} {% endfor %}
     </div>
   </body>

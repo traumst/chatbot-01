@@ -17,7 +17,7 @@ from alembic import command
 import src.middleware.db_session as db_middleware
 import src.middleware.validate_query as query_middleware
 import src.db.query_log as query_log
-from src.db.query_log import QueryLog, Base
+from src.db.query_log import QueryLog
 from src.schemas.query_request import QueryRequest
 from src.utils.env_config import read_env, EnvConfig
 from src.utils.lru_cache import LRUCache
@@ -40,9 +40,6 @@ query_cache: LRUCache = LRUCache(size=runtime_config.cache_size)
 
 router = APIRouter()
 
-def timestamp() -> str:
-    return datetime.datetime.now().isoformat()
-
 @router.post("/query", response_class=HTMLResponse)
 async def create_query(
     request: Request,
@@ -52,17 +49,35 @@ async def create_query(
     """Simulate processing by reversing the query text"""
     logger.info(f"Received query from {request.client}: {query_data.query}")
     user_query: str = f"{query_data.query}"
-    cached_response: Optional[QueryLog] = query_cache.get(user_query)
-    if cached_response is None:
-        logger.info(f"New query will be cached: {user_query}")
-        inverted_text: str = query_data.query[::-1]
-        cached_response = query_log.create_query_log(db, query_data.query, response_text=inverted_text)
-        query_cache.put(user_query, cached_response)
-    else:
-        logger.info(f"Cached query response is served: {query_data.query}: {cached_response.response_text}")
+    # maybe we already cached response for this query
+    query_response: Optional[QueryLog] = query_cache.get(user_query)
+    if query_response is not None:
+        logger.info(f"Cached response is being served: {query_data.query}: {query_response.response_text}")
+        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_response})
 
-    return templates.TemplateResponse("log_entry.html", {"request": request, "entry": cached_response})
+    # still, maybe we already answered this query previously
+    query_hash = user_query.__hash__()
+    stored_response: QueryLog | None = query_log.get_query_log(db, query_hash)
+    if stored_response is not None and stored_response.query_text == user_query:
+        logger.info(f"Caching and serving stored response: {user_query}: {stored_response.response_text}")
+        query_cache.put(user_query, stored_response)
+        stored_response.updated_at = datetime.datetime.now()
+        query_log.update_query_record(db, stored_response)
+        # todo
+        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": stored_response})
 
+    # produce new response,
+    logger.info(f"New query will be stored and cached: {user_query}")
+    inverted_text: str = query_data.query[::-1]
+
+    # store it for reuse
+    query_response = query_log.create_query_log(db, query_data.query, response_text=inverted_text)
+    if query_response is None:
+        # TODO create info message, explain what failed
+        raise RuntimeError("failed to persist query for later")
+
+    query_cache.put(user_query, query_response)
+    return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_response})
 
 @router.get("/home", response_class=HTMLResponse)
 async def read_home(request: Request, db: Session = Depends(db_middleware.get_db)):
