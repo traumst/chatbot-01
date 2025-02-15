@@ -1,23 +1,26 @@
 """Web server exposing cached queries"""
 
-import logging
 import datetime
+import logging
+import os
 from typing import List, Optional
 
 import uvicorn
-from fastapi import FastAPI, Query, Request, Depends, HTTPException, APIRouter
+from alembic.config import Config
+from fastapi import FastAPI, Request, Depends, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 from rich.logging import RichHandler
+from sqlalchemy.orm import Session
+from alembic import command
 
-from src import history
-from src.middleware import get_db, validate_query
-from src.db.models import QueryLog
+import src.middleware.db_session as db_middleware
+import src.middleware.validate_query as query_middleware
+import src.db.query_log as query_log
+from src.db.query_log import QueryLog, Base
 from src.schemas.query_request import QueryRequest
 from src.utils.env_config import read_env, EnvConfig
 from src.utils.lru_cache import LRUCache
-
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -43,8 +46,8 @@ def timestamp() -> str:
 @router.post("/query", response_class=HTMLResponse)
 async def create_query(
     request: Request,
-    query_data: QueryRequest = Depends(validate_query),
-    db: Session = Depends(get_db)
+    query_data: QueryRequest = Depends(query_middleware.validate_query),
+    db: Session = Depends(db_middleware.get_db)
 ):
     """Simulate processing by reversing the query text"""
     logger.info(f"Received query from {request.client}: {query_data.query}")
@@ -53,7 +56,7 @@ async def create_query(
     if cached_response is None:
         logger.info(f"New query will be cached: {user_query}")
         inverted_text: str = query_data.query[::-1]
-        cached_response = history.create_query_log(db, query_data, response_text=inverted_text)
+        cached_response = query_log.create_query_log(db, query_data.query, response_text=inverted_text)
         query_cache.put(user_query, cached_response)
     else:
         logger.info(f"Cached query response is served: {query_data.query}: {cached_response.response_text}")
@@ -62,10 +65,10 @@ async def create_query(
 
 
 @router.get("/home", response_class=HTMLResponse)
-async def read_home(request: Request, db: Session = Depends(get_db)):
+async def read_home(request: Request, db: Session = Depends(db_middleware.get_db)):
     """Home page, displaying past queries"""
     logger.info(f"Serving home to {request.client}")
-    logs: List[QueryLog] = history.get_query_logs(db, skip=0, limit=10)
+    logs: List[QueryLog] = query_log.get_query_logs(db, offset=0, limit=10)
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
@@ -81,37 +84,61 @@ async def read_home(request: Request, db: Session = Depends(get_db)):
 #     logger.info(f"Serving query log for {request.client}: query-{query_id}, offset-{from_offset}")
 #     logs: List[QueryLog]
 #     if query_id is not None:
-#         logs = [history.get_query_log(db, query_id=query_id)]
+#         logs = [query_log.get_query_log(db, query_id=query_id)]
 #         if len(logs) == 0:
 #             raise HTTPException(status_code=404, detail="Query not found")
 #     elif from_offset is not None:
-#         logs = history.get_query_logs(db, skip=from_offset)
+#         logs = query_log.get_query_logs(db, skip=from_offset)
 #     else:
-#         logs = history.get_query_logs(db, skip=0, limit=10)
+#         logs = query_log.get_query_logs(db, skip=0, limit=10)
 #
 #     return logs
 
 app = FastAPI(title="LLM Query API", version="1.0")
 app.include_router(router)
 
-@app.middleware("http")
-async def query_caching_middleware(request: Request, call_next):
-    logger.info("hello!")
-    return await call_next(request)
+# @app.middleware("http")
+# async def query_caching_middleware(request: Request, call_next):
+#     logger.info("hello!")
+#     return await call_next(request)
+#
+# @app.middleware("http")
+# async def process_timing_middleware(request: Request, call_next):
+#     t0 = datetime.datetime.now()
+#     response = await call_next(request)
+#     dt = (datetime.datetime.now() - t0)
+#     logger.info(f"processing {request.url} took {dt}")
+#     return response
+#
+#
+# @asynccontextmanager
+# async def lifespan(_: FastAPI):
+#     logger.info("Starting up...")
+#     alembic_cfg = Config("alembic.ini")
+#     logger.info("run alembic upgrade head...")
+#     command.upgrade(alembic_cfg, "head")
+#     yield
+#     logger.info("Shutting down...")
 
-@app.middleware("http")
-async def process_timing_middleware(request: Request, call_next):
-    t0 = datetime.datetime.now()
-    response = await call_next(request)
-    dt = (datetime.datetime.now() - t0)
-    logger.info(f"processing {request.url} took {dt}")
-    return response
 
 
+# def check_migration_state(expected_revision: Optional[str]) -> bool:
+#     if expected_revision is None:
+#         return False
+#     with engine.connect() as conn:
+#         result = conn.execute(text("SELECT version_num FROM alembic_version"))
+#         current_revision = result.scalar()
+#         return current_revision == expected_revision
 
+def run_migrations():
+    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
 
-# Run the server (only if this script is run directly)
+# Run the server if  ran directly
 if __name__ == "__main__":
+
+    # if not check_migration_state():
+    run_migrations()
     uvicorn.run(
         "server:app",
         host=runtime_config.host,
