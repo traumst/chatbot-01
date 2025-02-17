@@ -2,6 +2,7 @@
 
 from typing import cast, List
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 import datetime
 from sqlalchemy import Column, Integer, Text, DateTime
@@ -55,25 +56,39 @@ def get_query_log(db: Session, query_id: int) -> QueryLog | None:
 
 def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[QueryLog]:
     """
-    Retrieves last entries, with optional offset and default limit of 20 with DESC order
+    Retrieves last entries, with optional offset and default limit of 20 with DESC order.
+    Request and response fields are limited to 60 chars.
 
     :param db: db connection for the current user session
     :param offset: skip over a number of elements
     :param limit: max count of entries to return
     """
 
-    limit = 100 if limit > 100  else limit
-    res = (db.query(QueryLog)
+    res = cast(List[QueryLog], db.query(
+            QueryLog.id,
+            QueryLog.hash,
+            func.substr(QueryLog.query_text, 1, 60).label("query_text"),
+            func.substr(QueryLog.response_text, 1, 60).label("response_text"),
+            QueryLog.created_at,
+            QueryLog.updated_at)
            .order_by(QueryLog.created_at.desc())
            .offset(offset)
-           .limit(limit)
+           .limit(100 if limit > 100  else limit)
            .all())
-    return cast(List[QueryLog], res)
+    return res
 
 
-def update_query_record(db: Session, query_log: QueryLog):
-    query_log.updated_at = datetime.datetime.now()
-    db.merge(query_log)
+def update_query_record(db: Session, record: QueryLog):
+    """
+    Synchronizes instance values with corresponding db record.
+    Always overwrites `updated_at` to the current time.
+
+    :param db: db connection for the current user session
+    :param record: request-response pair
+    """
+
+    record.updated_at = datetime.datetime.now()
+    db.merge(record)
     db.commit()
-    db.refresh(query_log)
-    return query_log
+    db.refresh(record)
+    return record
