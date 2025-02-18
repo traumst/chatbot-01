@@ -1,4 +1,4 @@
-<div id="log-entry-{{ entry.id }}" class="log-entry flex flex-col m-2 p-2">
+<div id="log-entry-{{ entry.id }}" class="log-entry slide-down flex flex-col m-2 p-2 first:bg-blue-600 bg-yellow-700 rounded-xl shadow">
     <div class="flex flex-row m-1 p-1">{{ entry.created_at }}</div>
     <div class="flex flex-row m-1 p-1">Query: <strong>{{ entry.query_text }}</strong></div>
     <div class="flex flex-row m-1 p-1">Response: <strong>{{ entry.response_text }}</strong></div>
