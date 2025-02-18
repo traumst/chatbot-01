@@ -7,26 +7,25 @@ from logging import Logger
 from typing import List, Optional
 
 import uvicorn
-from alembic.config import Config
 from fastapi import FastAPI, Request, Depends, APIRouter, Query, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from alembic import command
 
+from src.db.database import run_migrations
+import src.db.query_log as query_log
 import src.middleware.db_session as db_middleware
 import src.middleware.validate_query as query_middleware
-import src.db.query_log as query_log
+from src.utils.logmod import init as init_log
 from src.db.query_log import QueryLog
 from src.schemas.query_request import QueryRequest
 from src.utils.env_config import read_env, EnvConfig
 from src.utils.lru_cache import LRUCache
-import src.utils.logmod as logmod
 
 runtime_config: EnvConfig = read_env()
 templates = Jinja2Templates(directory="src/template")
 query_cache = LRUCache(size=runtime_config.cache_size)
-logmod.init(runtime_config.log_level)
+init_log(runtime_config.log_level)
 
 logger: Logger = logging.getLogger(__name__)
 
@@ -43,6 +42,10 @@ async def read_home(request: Request, db: Session = Depends(db_middleware.get_db
     """Home page, displaying past queries"""
     logger.info(f"Serving home to {request.client}")
     logs: List[QueryLog] = query_log.get_query_logs(db, offset=0, limit=10)
+    if len(logs) > 0:
+        # top log item should contain whole query and response
+        last_query = query_log.get_query_log(db, logs[0].id)
+        logs[0] = last_query
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
@@ -135,9 +138,6 @@ app.include_router(router)
 #         current_revision = result.scalar()
 #         return current_revision == expected_revision
 
-def run_migrations():
-    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
-    command.upgrade(alembic_cfg, "head")
 
 # Run the server if ran directly
 if __name__ == "__main__":

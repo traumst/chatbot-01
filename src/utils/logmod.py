@@ -2,7 +2,6 @@ import logging
 
 from rich.logging import RichHandler
 
-
 def init(level: int) -> None:
     assert level is not logging.NOTSET
     logging.basicConfig(
@@ -34,6 +33,8 @@ def log_level_atoi(log_level: str) -> int:
 
 def log_level_itoa(log_level: int) -> str:
     match log_level:
+        case logging.NOTSET:
+            return "none"
         case logging.DEBUG:
             return "debug"
         case logging.INFO:

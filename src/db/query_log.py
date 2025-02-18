@@ -70,18 +70,20 @@ def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[QueryL
     :param limit: max count of entries to return
     """
 
-    res = cast(List[QueryLog], db.query(
-            QueryLog.id,
-            QueryLog.hash,
-            func.substr(QueryLog.query_text, 1, 60).label("query_text"),
-            func.substr(QueryLog.response_text, 1, 60).label("response_text"),
-            QueryLog.created_at,
-            QueryLog.updated_at)
-           .order_by(QueryLog.created_at.desc())
-           .offset(offset)
-           .limit(100 if limit > 100  else limit)
-           .all())
-    return res
+    limit = 100 if limit > 100 else limit
+    q = db.query(
+        QueryLog.id,
+        QueryLog.hash,
+        func.substr(QueryLog.query_text, 1, 60).label("query_text"),
+        func.substr(QueryLog.response_text, 1, 60).label("response_text"),
+        QueryLog.created_at,
+        QueryLog.updated_at,
+    )
+    q = q.order_by(QueryLog.created_at.desc())
+    q = q.offset(offset)
+    q = q.limit(limit)
+    res = q.all()
+    return cast(List[QueryLog], res)
 
 
 def update_query_record(db: Session, record: QueryLog):
