@@ -57,10 +57,12 @@
     <script>
       // intercept htmx request to manually checkValidity
       document.body.addEventListener("htmx:configRequest", function(evt) {
-        const input = document.getElementById("query_text");
-        if (input && !input.checkValidity()) {
-          evt.preventDefault();
-          input.reportValidity();
+        if(evt.target.matches("#query_text")) {
+          const input = document.getElementById("query_text");
+          if (input && !input.checkValidity()) {
+            evt.preventDefault();
+            input.reportValidity();
+          }
         }
       });
     </script>
