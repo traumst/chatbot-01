@@ -8,9 +8,8 @@ from typing import List, Optional
 
 import uvicorn
 from alembic.config import Config
-from fastapi import FastAPI, Request, Depends, APIRouter
-from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Request, Depends, APIRouter, Query, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from alembic import command
@@ -33,6 +32,19 @@ logger: Logger = logging.getLogger(__name__)
 
 app = FastAPI(title="LLM Query API", version="1.0")
 router = APIRouter()
+
+@router.get("/favicon.ico", response_class=FileResponse)
+async def favicon():
+    logger.debug("serving favicon...")
+    return FileResponse(f"{os.getcwd()}/src/img/scarab-bnw.svg", media_type="image/svg+xml")
+
+@router.get("/", response_class=HTMLResponse)
+async def read_home(request: Request, db: Session = Depends(db_middleware.get_db)):
+    """Home page, displaying past queries"""
+    logger.info(f"Serving home to {request.client}")
+    logs: List[QueryLog] = query_log.get_query_logs(db, offset=0, limit=10)
+
+    return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
 @router.post("/query", response_class=HTMLResponse)
 async def create_query(
