@@ -3,14 +3,15 @@
 import datetime
 import logging
 import os
+from logging import Logger
 from typing import List, Optional
 
 import uvicorn
 from alembic.config import Config
 from fastapi import FastAPI, Request, Depends, APIRouter
 from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Depends, APIRouter, Query, HTTPException
 from fastapi.templating import Jinja2Templates
-from rich.logging import RichHandler
 from sqlalchemy.orm import Session
 from alembic import command
 
@@ -21,23 +22,16 @@ from src.db.query_log import QueryLog
 from src.schemas.query_request import QueryRequest
 from src.utils.env_config import read_env, EnvConfig
 from src.utils.lru_cache import LRUCache
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(asctime)s @%(name)s: %(message)s",
-    datefmt="[%Y-%m-%dT%H:%M:%S]",
-    handlers=[
-        RichHandler(show_time=False, show_level=False, show_path=False)
-        # logging.FileHandler(f"general.log"),
-        # logging.StreamHandler(sys.stdout),
-    ])
-logger.warning("Logging enabled with level %s", logger.level)
+import src.utils.logmod as logmod
 
 runtime_config: EnvConfig = read_env()
 templates = Jinja2Templates(directory="src/template")
-query_cache: LRUCache = LRUCache(size=runtime_config.cache_size)
+query_cache = LRUCache(size=runtime_config.cache_size)
+logmod.init(runtime_config.log_level)
 
+logger: Logger = logging.getLogger(__name__)
+
+app = FastAPI(title="LLM Query API", version="1.0")
 router = APIRouter()
 
 @router.post("/query", response_class=HTMLResponse)
@@ -50,10 +44,10 @@ async def create_query(
     logger.info(f"Received query from {request.client}: {query_data.query}")
     user_query: str = f"{query_data.query}"
     # maybe we already cached response for this query
-    query_response: Optional[QueryLog] = query_cache.get(user_query)
-    if query_response is not None:
-        logger.info(f"Cached response is being served: {query_data.query}: {query_response.response_text}")
-        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_response})
+    query_log_record: Optional[QueryLog] = query_cache.get(user_query)
+    if query_log_record is not None:
+        logger.info(f"Cached response is being served: {query_data.query}: {query_log_record.response_text}")
+        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
     # still, maybe we already answered this query previously
     query_hash = user_query.__hash__()
@@ -71,45 +65,32 @@ async def create_query(
     inverted_text: str = query_data.query[::-1]
 
     # store it for reuse
-    query_response = query_log.create_query_log(db, query_data.query, response_text=inverted_text)
-    if query_response is None:
+    query_log_record = query_log.create_query_log(db, query_data.query, response_text=inverted_text)
+    if query_log_record is None:
         # TODO create info message, explain what failed
         raise RuntimeError("failed to persist query for later")
 
-    query_cache.put(user_query, query_response)
-    return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_response})
+    query_cache.put(user_query, query_log_record)
+    return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
-@router.get("/home", response_class=HTMLResponse)
-async def read_home(request: Request, db: Session = Depends(db_middleware.get_db)):
-    """Home page, displaying past queries"""
-    logger.info(f"Serving home to {request.client}")
-    logs: List[QueryLog] = query_log.get_query_logs(db, offset=0, limit=10)
+@router.get("/log", response_class=HTMLResponse)
+async def read_log(
+    request: Request,
+    db: Session = Depends(db_middleware.get_db),
+    query_id: Optional[int] = Query(0, alias="id", ge=1),
+):
+    """Get one or more queries from the log"""
+    logger.info(f"Serving query id={query_id} for {request.client.host}:{request.client.port}")
+    if query_id is None:
+        raise ValueError("query_id is required")
+    if type(query_id) is not int or query_id < 1:
+        raise ValueError("query_id must be positive integer")
+    query_log_record = query_log.get_query_log(db, query_id=query_id)
+    if query_log_record is None:
+        raise HTTPException(status_code=555, detail="Query not found", headers={"Retry-After": "30"})
 
-    return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
+    return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
-
-# @router.get("/log", response_model=list[QueryLog])
-# async def read_log(
-#     request: Request,
-#     query_id: Optional[int] = Query(None),
-#     from_offset: Optional[int] = Query(0, alias="from"),
-#     db: Session = Depends(get_db)
-# ) -> List[QueryLog]:
-#     """Get one or more queries from the log"""
-#     logger.info(f"Serving query log for {request.client}: query-{query_id}, offset-{from_offset}")
-#     logs: List[QueryLog]
-#     if query_id is not None:
-#         logs = [query_log.get_query_log(db, query_id=query_id)]
-#         if len(logs) == 0:
-#             raise HTTPException(status_code=404, detail="Query not found")
-#     elif from_offset is not None:
-#         logs = query_log.get_query_logs(db, skip=from_offset)
-#     else:
-#         logs = query_log.get_query_logs(db, skip=0, limit=10)
-#
-#     return logs
-
-app = FastAPI(title="LLM Query API", version="1.0")
 app.include_router(router)
 
 # @app.middleware("http")
@@ -125,7 +106,6 @@ app.include_router(router)
 #     logger.info(f"processing {request.url} took {dt}")
 #     return response
 #
-#
 # @asynccontextmanager
 # async def lifespan(_: FastAPI):
 #     logger.info("Starting up...")
@@ -134,9 +114,7 @@ app.include_router(router)
 #     command.upgrade(alembic_cfg, "head")
 #     yield
 #     logger.info("Shutting down...")
-
-
-
+#
 # def check_migration_state(expected_revision: Optional[str]) -> bool:
 #     if expected_revision is None:
 #         return False
@@ -149,9 +127,8 @@ def run_migrations():
     alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
     command.upgrade(alembic_cfg, "head")
 
-# Run the server if  ran directly
+# Run the server if ran directly
 if __name__ == "__main__":
-
     # if not check_migration_state():
     run_migrations()
     uvicorn.run(

@@ -1,5 +1,5 @@
 """Operation that can be performed in the DB"""
-
+import logging
 from typing import cast, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -8,6 +8,7 @@ import datetime
 from sqlalchemy import Column, Integer, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -22,6 +23,12 @@ class QueryLog(Base):
     response_text = Column(Text)
     created_at = Column(DateTime, index=True, default=datetime.datetime.now(datetime.UTC))
     updated_at = Column(DateTime, index=True, nullable=True)
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.to_dict()})"
 
 def create_query_log(
     db: Session,
@@ -48,10 +55,9 @@ def get_query_log(db: Session, query_id: int) -> QueryLog | None:
     :param query_id can be either id or hash value
     """
 
-    one = db.query(QueryLog).filter(QueryLog.id == query_id or QueryLog.hash == query_id).first()
-    if one is None:
-        return None
-    return one[0]
+    one = db.query(QueryLog).filter(QueryLog.id == query_id).first()
+    # logger.error(f"Query log record found [{one.__repr__()}]")
+    return one
 
 
 def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[QueryLog]:
