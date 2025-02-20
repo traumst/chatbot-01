@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 import datetime
-from sqlalchemy import Column, Integer, Text, DateTime
+from sqlalchemy import event, Column, Integer, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 
 logger = logging.getLogger(__name__)
@@ -23,12 +23,17 @@ class QueryLog(Base):
     response_text = Column(Text)
     created_at = Column(DateTime, index=True, default=datetime.datetime.now(datetime.UTC))
     updated_at = Column(DateTime, index=True, nullable=True)
+    clickable = True
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.to_dict()})"
+
+@event.listens_for(QueryLog, 'load')
+def receive_load(target, _):
+    target.clickable = True
 
 def create_query_log(
     db: Session,
@@ -71,19 +76,16 @@ def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[QueryL
     """
 
     limit = 100 if limit > 100 else limit
-    q = db.query(
+    rows = db.query(
         QueryLog.id,
         QueryLog.hash,
         func.substr(QueryLog.query_text, 1, 60).label("query_text"),
         func.substr(QueryLog.response_text, 1, 60).label("response_text"),
         QueryLog.created_at,
         QueryLog.updated_at,
-    )
-    q = q.order_by(QueryLog.created_at.desc())
-    q = q.offset(offset)
-    q = q.limit(limit)
-    res = q.all()
-    return cast(List[QueryLog], res)
+    ).order_by(QueryLog.created_at.desc()).offset(offset).limit(limit).all()
+    logs = [QueryLog(**dict(row._mapping)) for row in rows]
+    return logs
 
 
 def update_query_record(db: Session, record: QueryLog):

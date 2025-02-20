@@ -1,8 +1,9 @@
-<!--     TODO first item on the list should not have htmx functionality-->
 <div id="log-entry-{{ entry.id }}"
+{% if entry.clickable == True %}
      hx-get="/log?id={{ entry.id }}"
      hx-target="#query_log"
      hx-swap="afterbegin"
+{% endif %}
      class="log-entry slide-down
         flex flex-col
         m-2 p-2
@@ -12,5 +13,6 @@
     <div class="flex flex-row m-1 p-1">{{ entry.created_at }}</div>
     <div class="flex flex-row m-1 p-1">Query: <strong>{{ entry.query_text }}</strong></div>
     <div class="flex flex-row m-1 p-1">Response: <strong>{{ entry.response_text }}</strong></div>
+    
   <hr />
 </div>

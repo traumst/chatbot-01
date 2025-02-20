@@ -43,9 +43,16 @@ async def read_home(request: Request, db: Session = Depends(db_middleware.get_db
     logger.info(f"Serving home to {request.client}")
     logs: List[QueryLog] = query_log.get_query_logs(db, offset=0, limit=10)
     if len(logs) > 0:
-        # top log item should contain whole query and response
-        last_query = query_log.get_query_log(db, logs[0].id)
-        logs[0] = last_query
+        for idx, log in enumerate(logs):
+            if idx == 0:
+                # top log item should contain whole query and response
+                # and also not be clickable
+                last = query_log.get_query_log(db, logs[0].id)
+                last.clickable = False
+                logs[idx] = last
+            else:
+                # log.set_clickable(True)
+                pass
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
@@ -62,18 +69,19 @@ async def create_query(
     query_log_record: Optional[QueryLog] = query_cache.get(user_query)
     if query_log_record is not None:
         logger.info(f"Cached response is being served: {query_data.query}: {query_log_record.response_text}")
+        query_log_record.clickable = False
         return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
     # still, maybe we already answered this query previously
     query_hash = user_query.__hash__()
-    stored_response: QueryLog | None = query_log.get_query_log(db, query_hash)
-    if stored_response is not None and stored_response.query_text == user_query:
-        logger.info(f"Caching and serving stored response: {user_query}: {stored_response.response_text}")
-        query_cache.put(user_query, stored_response)
-        stored_response.updated_at = datetime.datetime.now()
-        query_log.update_query_record(db, stored_response)
-        # todo
-        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": stored_response})
+    query_log_record = query_log.get_query_log(db, query_hash)
+    if query_log_record is not None and query_log_record.query_text == user_query:
+        logger.info(f"Caching and serving stored response: {user_query}: {query_log_record.response_text}")
+        query_cache.put(user_query, query_log_record)
+        query_log_record.updated_at = datetime.datetime.now()
+        query_log.update_query_record(db, query_log_record)
+        query_log_record.clickable = False
+        return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
     # produce new response,
     logger.info(f"New query will be stored and cached: {user_query}")
@@ -86,6 +94,7 @@ async def create_query(
         raise RuntimeError("failed to persist query for later")
 
     query_cache.put(user_query, query_log_record)
+    query_log_record.clickable = False
     return templates.TemplateResponse("log_entry.html", {"request": request, "entry": query_log_record})
 
 @router.get("/log", response_class=HTMLResponse)

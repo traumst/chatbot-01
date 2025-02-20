@@ -9,6 +9,7 @@ class EnvConfig(BaseModel):
     port: int  = 7654
     cache_size: int = 8
     log_level: int = logging.INFO
+    db_conn_str: str = ""
 
     def assign_env_config(self, kv_line: str) -> None:
         """
@@ -28,12 +29,21 @@ class EnvConfig(BaseModel):
         match conf_key:
             case "host":
                 self.host = conf_val
+                assert self.host is not None
+                assert self.host is not ""
             case "port":
                 self.port = int(conf_val)
+                assert self.port > 0
             case "cache_size":
                 self.cache_size = int(conf_val)
+                assert self.cache_size > 0
+                assert self.cache_size <= 1024
             case "log_level":
                 self.log_level = log_level_atoi(conf_val)
+            case "db_str":
+                self.db_conn_str = conf_val
+                assert self.db_conn_str is not None
+                assert self.db_conn_str is not ""
             case _:
                 print(f"Unsupported env config key, {key}={val}")
 
