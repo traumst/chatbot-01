@@ -1,8 +1,11 @@
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 from src.utils.logmod import log_level_atoi
+from src.utils.lru_cache import LRUCache
 
+env_cache: LRUCache = LRUCache(8, 1/4)
+logger = logging.getLogger(__name__)
 
 class EnvConfig(BaseModel):
     host: str = "0.0.0.0"
@@ -10,8 +13,11 @@ class EnvConfig(BaseModel):
     cache_size: int = 8
     log_level: int = logging.INFO
     db_conn_str: str = ""
+    model_name: str = ""
+    model_url: HttpUrl = None
 
-    def assign_env_config(self, kv_line: str) -> None:
+
+    def assign_env_value(self, kv_line: str) -> None:
         """
         maps raw key-value pairs from config,
         should look like: XYZ=some_string
@@ -44,16 +50,28 @@ class EnvConfig(BaseModel):
                 self.db_conn_str = conf_val
                 assert self.db_conn_str is not None
                 assert self.db_conn_str is not ""
+            case "MODEL_URL":
+                self.model_url = HttpUrl(conf_val)
+                assert self.db_conn_str is not None
+                assert self.db_conn_str is not ""
+            case "MODEL_NAME":
+                self.model_name = conf_val
+                assert self.db_conn_str is not None
+                assert self.db_conn_str is not ""
             case _:
                 print(f"Unsupported env config key, {key}={val}")
 
-
 def read_env() -> EnvConfig | None:
+    conf: EnvConfig | None = env_cache.get("envConfig")
+    if conf is not None and conf.cache_size > 0:
+        logger.info(f"env conf from cache:\t{conf}")
+        return conf
+
     conf = EnvConfig()
     file = open(".env", "r")
     try:
         for line in file:
-            conf.assign_env_config(line)
+            conf.assign_env_value(line)
     finally:
         file.close()
     # this should do the same without try,
@@ -65,7 +83,8 @@ def read_env() -> EnvConfig | None:
     assert conf.host.strip() != ""
     assert conf.port > 0
     assert conf.log_level >= 0
+    env_cache.put("envConfig", conf)
 
-    print(f"env conf:\t{conf}")
+    logger.info(f"env conf loaded:\t{conf}")
 
     return conf
