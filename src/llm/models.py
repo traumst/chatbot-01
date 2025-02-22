@@ -23,6 +23,17 @@ class GenerationResponse(BaseModel):
     response: str
     done: bool
 
+    def __lt__(self, other: "GenerationResponse") -> bool:
+        if not isinstance(other, GenerationResponse):
+            return NotImplemented
+        return self.created_at < other.created_at
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, GenerationResponse):
+            return NotImplemented
+        return self.created_at == other.created_at
+
+
 # {
 #   "model":"deepseek-r1:1.5b",
 #   "created_at":"2025-02-20T22:01:10.716564Z",

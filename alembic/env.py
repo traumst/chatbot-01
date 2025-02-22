@@ -1,4 +1,4 @@
-from src.db.query_log import QueryLog
+from src.db.generation_record import GenerationRecord
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -15,7 +15,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = QueryLog.metadata
+target_metadata = GenerationRecord.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

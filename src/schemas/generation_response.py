@@ -2,7 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class QueryResponse(BaseModel):
+class GenerationResponse(BaseModel):
     """Response format returned from the API"""
 
     id: int

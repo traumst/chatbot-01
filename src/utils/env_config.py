@@ -36,7 +36,7 @@ class EnvConfig(BaseModel):
             case "host":
                 self.host = conf_val
                 assert self.host is not None
-                assert self.host is not ""
+                assert self.host != ""
             case "port":
                 self.port = int(conf_val)
                 assert self.port > 0
@@ -49,15 +49,15 @@ class EnvConfig(BaseModel):
             case "db_str":
                 self.db_conn_str = conf_val
                 assert self.db_conn_str is not None
-                assert self.db_conn_str is not ""
-            case "MODEL_URL":
+                assert self.db_conn_str != ""
+            case "model_url":
                 self.model_url = HttpUrl(conf_val)
                 assert self.db_conn_str is not None
-                assert self.db_conn_str is not ""
-            case "MODEL_NAME":
+                assert self.db_conn_str != ""
+            case "model_name":
                 self.model_name = conf_val
                 assert self.db_conn_str is not None
-                assert self.db_conn_str is not ""
+                assert self.db_conn_str != ""
             case _:
                 print(f"Unsupported env config key, {key}={val}")
 
