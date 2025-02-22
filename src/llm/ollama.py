@@ -1,14 +1,13 @@
 import json
 import logging
 from json import JSONDecodeError
+from typing import Optional, AsyncGenerator
 
 import httpx
-from typing import Optional, AsyncGenerator, Union
-
 from pydantic import ValidationError
 
-from src.utils.env_config import read_env, EnvConfig
 from src.llm.models import GenerationRequest, GenerationResponse, GenerationResponseComplete
+from src.utils.env_config import read_env, EnvConfig
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ def parse_generation_line(line: str) -> GenerationResponse:
 
 async def generate(prompt: str) -> AsyncGenerator[Optional[GenerationResponse | ValueError], None]:
     """
-    Asynchronously yields generated responses chunk by chunk.
+    Asynchronously yields generated responses chunk by chunk
 
     :raises ValueError: if json parsing or validation fails
     """
@@ -38,9 +37,13 @@ async def generate(prompt: str) -> AsyncGenerator[Optional[GenerationResponse | 
     async with httpx.AsyncClient() as client:
         async with client.stream(
             "POST",
-            conf.model_url.path,
-            json=GenerationRequest(model=conf.model_name, prompt=prompt)
+            f"{conf.model_url}api/generate",
+            json=GenerationRequest(model=conf.model_name, prompt=prompt).model_dump()
         ) as response:
+            ##
+            content = await response.aread()
+            print("Raw llm response:", content)
+            ##
             async for raw_line in response.aiter_lines():
                 line = raw_line.strip()
                 if not line:
@@ -50,3 +53,4 @@ async def generate(prompt: str) -> AsyncGenerator[Optional[GenerationResponse | 
                     yield parsed_response
                 except ValueError as e:
                     logger.error("Failed to parse response chunk: %s, %s", line, e)
+                    yield e
