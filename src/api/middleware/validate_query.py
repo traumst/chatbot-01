@@ -1,17 +1,23 @@
+"""Middleware that validates the input query"""
+
 import logging
 from typing import Generator
-from fastapi import Form
+from fastapi import Form, HTTPException, status
 from pydantic import ValidationError
-from src.schemas.generation_request import GenerationRequest
+
+from src.schemas.gen_req import GenerationRequest
 
 logger = logging.getLogger(__name__)
 
 
 def validate_query(query_text: str = Form(...)) -> Generator[GenerationRequest, None, None]:
-    """Middleware that validates the input query"""
+    """Assigns query text to an object with validation error handling"""
 
     try:
         yield GenerationRequest(query=query_text)
-    except ValidationError as e:
+    except (ValueError, ValidationError) as e:
         logger.error("Query validation failed, %s", e)
-        return
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid query: {e}"
+        )

@@ -1,3 +1,5 @@
+"""Request format accepted by the API"""
+
 from pydantic import BaseModel, field_validator, Field
 
 
