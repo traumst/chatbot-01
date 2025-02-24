@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 from pydantic import ValidationError
 
-from src.llm.models import GenerationRequest, GenerationResponse, GenerationResponseComplete
+from src.ollama.ask_models import GenerationRequest, GenerationResponse, GenerationResponseComplete
 
 LONG_STRING_130: str = "very long text, i repeat, " * 5
 assert len(LONG_STRING_130) == 130

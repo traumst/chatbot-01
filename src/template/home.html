@@ -33,7 +33,7 @@
     <!-- submit query using htmx on click or on enter(keyCode=13) -->
     <div
       class="flex flex-row m-2 p-2"
-      hx-post="/query"
+      hx-post="/ask"
       hx-trigger="keyup[keyCode==13] from:#query_text, click from:#query_submit_btn"
       hx-include="#query_text"
       hx-target="#query_log"

@@ -1,3 +1,9 @@
+"""
+Calls local Ollama '/api/generate'
+
+https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
+"""
+
 import json
 import logging
 from json import JSONDecodeError
@@ -6,7 +12,7 @@ from typing import Optional, AsyncGenerator
 import httpx
 from pydantic import ValidationError
 
-from src.llm.models import GenerationRequest, GenerationResponse, GenerationResponseComplete
+from src.ollama.ask_models import GenerationRequest, GenerationResponse, GenerationResponseComplete
 from src.utils.env_config import read_env, EnvConfig
 
 logger = logging.getLogger(__name__)
@@ -27,7 +33,9 @@ def parse_generation_line(line: str) -> GenerationResponse:
     except ValidationError as e:
         raise ValueError("Validation failed for response data") from e
 
-async def generate(prompt: str) -> AsyncGenerator[Optional[GenerationResponse | ValueError], None]:
+async def model_generate(
+    prompt: str
+) -> AsyncGenerator[Optional[GenerationResponse | ValueError], None]:
     """
     Asynchronously yields generated responses chunk by chunk
 
@@ -40,10 +48,9 @@ async def generate(prompt: str) -> AsyncGenerator[Optional[GenerationResponse | 
             f"{conf.model_url}api/generate",
             json=GenerationRequest(model=conf.model_name, prompt=prompt).model_dump()
         ) as response:
-            ##
             content = await response.aread()
-            print("Raw llm response:", content)
-            ##
+            print(f"raw model response {content=}")
+            print(f"raw model text {content.response=}")
             async for raw_line in response.aiter_lines():
                 line = raw_line.strip()
                 if not line:

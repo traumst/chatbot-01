@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from src.schemas.gen_req import GenerationRequest
-import src.api.generate as llm_api_generate
+import src.ollama.interface as llm_api_generate
 import src.api.middleware.db_session as db_middleware
 import src.api.middleware.validate_query as query_middleware
 import src.db.database as db
@@ -40,7 +40,7 @@ async def favicon() -> FileResponse:
     return FileResponse(f"{os.getcwd()}/src/img/scarab-bnw.svg", media_type="image/svg+xml")
 
 @router.get("/", response_class=HTMLResponse)
-async def read_home(
+async def home(
         request: Request,
         db_session: Session = Depends(db_middleware.get_db),
 ) -> HTMLResponse:
@@ -58,17 +58,16 @@ async def read_home(
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
 
-@router.post("/query", response_class=StreamingResponse)
-async def generation_request(
+@router.post("/ask", response_class=StreamingResponse)
+async def ask(
     request: Request,
     prompt: GenerationRequest = Depends(query_middleware.validate_query),
     db_session: Session = Depends(db_middleware.get_db)
 ) -> HTMLResponse:
     """Makes requests to Ollama API Generate"""
-    logger.info("Received query from %s: %s", request.client, prompt.query)
-    user_query: str = f"{prompt.query}"
+    logger.info("Received ASK request from %s: %s", request.client, prompt.query)
     # maybe we already cached response for this query
-    query_log_record: Optional[generation_record.GenerationRecord] = query_cache.get(user_query)
+    query_log_record: Optional[generation_record.GenerationRecord] = query_cache.get(prompt.query)
     if query_log_record is not None:
         logger.debug("Serving from cache, query:'%s', response:'%s'",
                      prompt.query, query_log_record.response_text)
@@ -80,11 +79,11 @@ async def generation_request(
             })
 
     # still, maybe we already answered this query previously
-    query_hash = hash(user_query)
+    query_hash = hash(prompt.query)
     query_log_record = generation_record.get_query_log(db_session, query_hash)
-    if query_log_record is not None and query_log_record.query_text == user_query:
-        logger.info("Serving stored response: %s: %s", user_query, query_log_record.response_text)
-        query_cache.put(user_query, query_log_record)
+    if query_log_record is not None and query_log_record.query_text == prompt.query:
+        logger.info("Serving stored response: %s: %s", prompt.query, query_log_record.response_text)
+        query_cache.put(prompt.query, query_log_record)
         query_log_record.updated_at = datetime.datetime.now()
         generation_record.update_query_record(db_session, query_log_record)
         query_log_record.clickable = False
@@ -96,7 +95,7 @@ async def generation_request(
 
     logger.info("Making generation request: %s", )
     responses: [str] = []
-    async for part in llm_api_generate.generate(prompt.query):
+    async for part in llm_api_generate.ask(prompt.query):
         # TODO send chunks as they arrive
         responses.append(part)
 
@@ -109,7 +108,7 @@ async def generation_request(
     if query_log_record is None:
         logger.error('Failed to save new query record for "%s"', prompt.query)
         raise RuntimeError("failed to persist query for later")
-    query_cache.put(user_query, query_log_record)
+    query_cache.put(prompt.query, query_log_record)
     query_log_record.clickable = False
 
     return templates.TemplateResponse(
@@ -119,7 +118,7 @@ async def generation_request(
         })
 
 @router.get("/log", response_class=HTMLResponse)
-async def read_log(
+async def history(
     request: Request,
     db_session: Session = Depends(db_middleware.get_db),
     query_id: Optional[int] = Query(0, alias="id", ge=1),
