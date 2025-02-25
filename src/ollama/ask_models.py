@@ -79,8 +79,9 @@ class GenerationResponseComplete(GenerationResponse):
     eval_count: int
     eval_duration: timedelta
 
-    @field_validator('total_duration', 'load_duration', 'prompt_eval_duration', 'eval_duration', mode='before')
-    def convert_nanoseconds_to_timedelta(self, nanoseconds: int) -> timedelta:
+    @field_validator(
+        'total_duration', 'load_duration', 'prompt_eval_duration', 'eval_duration', mode='before')
+    def convert_nanoseconds_to_timedelta(cls, nanoseconds: int) -> timedelta:
         """Converts from model's int nanoseconds to native timedelta"""
 
         return timedelta(seconds=float(nanoseconds) / 1e9)
