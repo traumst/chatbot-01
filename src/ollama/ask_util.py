@@ -48,15 +48,14 @@ async def model_generate(
             f"{conf.model_url}api/generate",
             json=GenerationRequest(model=conf.model_name, prompt=prompt).model_dump()
         ) as response:
-            content = await response.aread()
-            print(f"raw model response {content=}")
-            print(f"raw model text {content.response=}")
+            # iterate over lines as they come
             async for raw_line in response.aiter_lines():
                 line = raw_line.strip()
                 if not line:
                     continue
                 try:
                     parsed_response = parse_generation_line(line)
+                    print(f"raw model response {parsed_response.response=}")
                     yield parsed_response
                 except ValueError as e:
                     logger.error("Failed to parse response chunk: %s, %s", line, e)

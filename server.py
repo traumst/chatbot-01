@@ -14,15 +14,16 @@ from src.utils.lru_cache import LRUCache
 
 runtime_config: EnvConfig = read_env()
 templates = Jinja2Templates(directory="src/template")
-query_cache = LRUCache(size=runtime_config.cache_size)
 src.utils.logmod.init(runtime_config.log_level)
 
 logger = logging.getLogger(__name__)
 
+query_cache = LRUCache(size=runtime_config.cache_size)
+app: FastAPI = init_api(query_cache)
+
 if __name__ == "__main__":
     logger.info("Starting server")
-    db.run_migrations()
-    app: FastAPI = init_api()
+    db.upgrade_db()
     uvicorn.run(
         "server:app",
         host=runtime_config.host,
