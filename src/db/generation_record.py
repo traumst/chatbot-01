@@ -52,7 +52,7 @@ def create_query_log(
     return db_log
 
 
-def get_query_log(db: Session, query_id: int) -> GenerationRecord | None:
+def get_record(db: Session, query_id: int) -> GenerationRecord | None:
     """
     Retrieves specific log by id
 

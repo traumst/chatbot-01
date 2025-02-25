@@ -17,7 +17,7 @@ from src.utils.env_config import read_env, EnvConfig
 
 logger = logging.getLogger(__name__)
 
-def parse_generation_line(line: str) -> GenerationResponse:
+def _parse_generation_line(line: str) -> GenerationResponse:
     """
     Parse a JSON line into the appropriate GenerationResponse object.
 
@@ -33,7 +33,7 @@ def parse_generation_line(line: str) -> GenerationResponse:
     except ValidationError as e:
         raise ValueError("Validation failed for response data") from e
 
-async def model_generate(
+async def _model_generate(
     prompt: str
 ) -> AsyncGenerator[Optional[GenerationResponse | ValueError], None]:
     """
@@ -54,9 +54,32 @@ async def model_generate(
                 if not line:
                     continue
                 try:
-                    parsed_response = parse_generation_line(line)
+                    parsed_response = _parse_generation_line(line)
                     print(f"raw model response {parsed_response.response=}")
                     yield parsed_response
                 except ValueError as e:
                     logger.error("Failed to parse response chunk: %s, %s", line, e)
                     yield e
+
+async def ask(query: str) -> AsyncGenerator[str, None]:
+    """Ask model to process single user query - i.e. no history"""
+
+    max_acc_len: int = 8192
+    acc_len: int = 0
+    part: GenerationResponse | ValueError
+    async for part in _model_generate(query):
+        if part is None:
+            logger.warning("none returned while generating response for '%s'", query)
+            continue
+
+        if part is ValueError:
+            logger.error("error occurred while generating response for '%s', %s", query, part)
+            continue
+
+        if hasattr(part, "response"):
+            acc_len += len(part.response)
+            yield part.response
+
+        if acc_len >= max_acc_len:
+            logger.info("response reached max len for query '%s'", query)
+            return

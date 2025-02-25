@@ -31,7 +31,7 @@ async def history(
         raise ValueError("query_id is required")
     if isinstance(query_id, int) is False or query_id < 1:
         raise ValueError("query_id must be positive integer")
-    query_log_record = generation_record.get_query_log(db_session, query_id=query_id)
+    query_log_record = generation_record.get_record(db_session, query_id=query_id)
     if query_log_record is None:
         raise HTTPException(
             status_code=555,

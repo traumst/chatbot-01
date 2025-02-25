@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 import src.api.middleware.db_session as db_middleware
 import src.api.middleware.validate_query as query_middleware
-import src.ollama.interface as llm_api_generate
+import src.ollama.chat as chat
 from src.db import generation_record
 from src.schemas.gen_req import GenerationRequest
 
@@ -33,7 +33,7 @@ async def convo(
     logger.info("Received CONVO request from %s: %s", request.client, prompt.query)
     # TODO query_cache: LRUCache = request.app.state.query_cache
     responses: [str] = []
-    async for part in llm_api_generate.chat(prompt.query):
+    async for part in chat.model_chat(prompt.query):
         # TODO send chunks as they arrive
         responses.append(part)
 

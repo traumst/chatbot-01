@@ -36,7 +36,7 @@ async def home(
         limit=10,
     )
     if len(logs) > 0:
-        logs[0] = generation_record.get_query_log(db_session, logs[0].id)
+        logs[0] = generation_record.get_record(db_session, logs[0].id)
         logs[0].clickable = False
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
