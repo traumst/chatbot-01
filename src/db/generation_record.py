@@ -1,12 +1,12 @@
 """Operation that can be performed in the DB"""
-import logging
-from typing import cast, List
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-
 import datetime
-from sqlalchemy import event, Column, Integer, Text, DateTime
+import logging
+from typing import List
+
+from sqlalchemy import event, Column, Integer, Text, DateTime, inspect
+from sqlalchemy import func, select
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, ColumnProperty
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +26,22 @@ class GenerationRecord(Base):
     clickable = True
 
     def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        """Serialize this instance into dict"""
+
+        mapper = inspect(self).mapper
+        return {
+            prop.key: getattr(self, prop.key)
+            for prop in mapper.attrs # type: ignore[attr-defined]
+            if isinstance(prop, ColumnProperty)
+        }
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.to_dict()})"
 
 @event.listens_for(GenerationRecord, 'load')
 def receive_load(target, _):
+    """Makes every object loaded from the DB clickable by default"""
+
     target.clickable = True
 
 def create_query_log(
@@ -65,7 +74,7 @@ def get_record(db: Session, query_id: int) -> GenerationRecord | None:
     return one
 
 
-def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[GenerationRecord]:
+def get_records(db: Session, offset: int = 0, limit: int = 20) -> List[GenerationRecord]:
     """
     Retrieves last entries, with optional offset and default limit of 20 with DESC order.
     Request and response fields are limited to 60 chars.
@@ -76,15 +85,19 @@ def get_query_logs(db: Session, offset: int = 0, limit: int = 20) -> List[Genera
     """
 
     limit = 100 if limit > 100 else limit
-    rows = db.query(
+    stmt = select(
         GenerationRecord.id,
         GenerationRecord.hash,
         func.substr(GenerationRecord.query_text, 1, 60).label("query_text"),
         func.substr(GenerationRecord.response_text, 1, 60).label("response_text"),
         GenerationRecord.created_at,
         GenerationRecord.updated_at,
-    ).order_by(GenerationRecord.created_at.desc()).offset(offset).limit(limit).all()
-    logs = [GenerationRecord(**dict(row._mapping)) for row in rows]
+    ).order_by(GenerationRecord.created_at.desc()).offset(offset).limit(limit)
+
+    result = db.execute(stmt)
+    rows = result.mappings().all()
+    logs = [GenerationRecord(**row) for row in rows]
+
     return logs
 
 

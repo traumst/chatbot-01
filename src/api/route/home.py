@@ -30,7 +30,7 @@ async def home(
 
     logger.info("Serving home to %s", request.client)
     # TODO query_cache: LRUCache = request.app.state.query_cache
-    logs: List[generation_record.GenerationRecord] = generation_record.get_query_logs(
+    logs: List[generation_record.GenerationRecord] = generation_record.get_records(
         db_session,
         offset=0,
         limit=10,
