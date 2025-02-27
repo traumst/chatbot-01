@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 import src.api.middleware.db_session as db_middleware
-from src.db import generation_record
+from src.db.tables import ask_record
 
 templates = Jinja2Templates(directory="src/template")
 
@@ -30,13 +30,13 @@ async def home(
 
     logger.info("Serving home to %s", request.client)
     # TODO query_cache: LRUCache = request.app.state.query_cache
-    logs: List[generation_record.GenerationRecord] = generation_record.get_records(
+    logs: List[ask_record.AskRecord] = ask_record.get_records(
         db_session,
         offset=0,
         limit=10,
     )
     if len(logs) > 0:
-        logs[0] = generation_record.get_record(db_session, logs[0].id)
+        logs[0] = ask_record.get_record(db_session, logs[0].id)
         logs[0].clickable = False
 
     return templates.TemplateResponse("home.html", {"request": request, "logs": logs})

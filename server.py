@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 import src.db.database as db
 import src.utils.logmod
-from src.api.router import init_api
+from src.api.router import init_fastapi_with_router
 from src.utils.env_config import read_env, EnvConfig
 from src.utils.lru_cache import LRUCache
 
@@ -19,7 +19,7 @@ src.utils.logmod.init(runtime_config.log_level)
 logger = logging.getLogger(__name__)
 
 query_cache = LRUCache(size=runtime_config.cache_size)
-app: FastAPI = init_api(query_cache)
+app: FastAPI = init_fastapi_with_router(query_cache)
 
 if __name__ == "__main__":
     logger.info("Starting server")

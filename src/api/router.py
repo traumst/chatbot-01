@@ -13,12 +13,11 @@ templates = Jinja2Templates(directory="src/template")
 
 logger: Logger = logging.getLogger(__name__)
 
-def init_api(query_cache: LRUCache) -> FastAPI:
+def init_fastapi_with_router(query_cache: LRUCache) -> FastAPI:
     """Creates new instance of FastAPI with included router"""
 
     app = FastAPI(title="LLM Query API", version="1.0")
-    # pylint: disable=no-member
-    app.state.query_cache = query_cache
+    app.state.query_cache = query_cache # type: ignore[attr-defined]
     app.include_router(home.router)
     app.include_router(ask.router)
     app.include_router(convo.router)

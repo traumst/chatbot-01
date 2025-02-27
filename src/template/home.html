@@ -31,6 +31,7 @@
     <h1 class="">Welcome to Query Tracker</h1>
 
     <!-- submit query using htmx on click or on enter(keyCode=13) -->
+<!--    TODO shift-enter nosend, new line instead -->
     <div
       class="flex flex-row m-2 p-2"
       hx-post="/ask"
@@ -50,12 +51,17 @@
         required
         class="w-full bg-indigo-400 p-3 rounded-lg"
       />
-      <button id="query_submit_btn" type="submit" class="w-10% bg-indigo-500 p-3 rounded-lg">
+      <button
+        id="query_submit_btn"
+        type="submit"
+        hx-indicator="#spinner"
+        class="w-10% bg-indigo-500 p-3 rounded-lg"
+      >
         Send
       </button>
     </div>
     <script>
-      // intercept htmx request to manually checkValidity
+      // Check form validity
       document.body.addEventListener("htmx:configRequest", function(evt) {
         if(evt.target.matches("#query_text")) {
           const input = document.getElementById("query_text");
@@ -65,8 +71,18 @@
           }
         }
       });
-    </script>
-    <script>
+      // Disable button while request is processing
+      document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        if(evt.target.matches("#query_text")) {
+          document.getElementById('query_submit_btn').disabled = true;
+        }
+      });
+      // Re-enable button when request completes
+      document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if(evt.target.matches("#query_text")) {
+          document.getElementById('query_submit_btn').disabled = false;
+        }
+      });
       function resetInput() {
         document.querySelector("#query_text").value = "";
       }
@@ -78,7 +94,13 @@
 
     <div id="query_log" class="flex flex-col flex-grow m-2 p-2">
       Previous queries:
-      {% for entry in logs %} {% include 'log_entry.html' %} {% endfor %}
+      {% for entry in logs %}
+        {% if entry.clickable == True %}
+
+        {% else %}
+          {% include 'ask_entry.html' %}
+        {% endif %}
+      {% endfor %}
     </div>
   </body>
 </html>

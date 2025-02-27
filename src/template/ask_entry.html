@@ -1,10 +1,10 @@
-<div id="log-entry-{{ entry.id }}"
+<div id="ask-entry-{{ entry.id }}"
 {% if entry.clickable == True %}
      hx-get="/log?id={{ entry.id }}"
      hx-target="#query_log"
      hx-swap="afterbegin"
 {% endif %}
-     class="log-entry slide-down
+     class="ask-entry slide-down
         flex flex-col
         m-2 p-2
         first:bg-blue-600 bg-yellow-700

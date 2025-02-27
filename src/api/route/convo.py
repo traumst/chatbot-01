@@ -5,7 +5,7 @@ Chat with the model while keeping track of previous messages from each side - us
 import logging
 from logging import Logger
 
-from fastapi import Request, Depends, APIRouter
+from fastapi import Request, Depends, APIRouter, HTTPException, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -13,8 +13,9 @@ from sqlalchemy.orm import Session
 import src.api.middleware.db_session as db_middleware
 import src.api.middleware.validate_query as query_middleware
 import src.ollama.chat as chat
-from src.db import generation_record
-from src.schemas.gen_req import GenerationRequest
+from src.db.tables import chat_record
+from src.db.tables.chat_record import AuthorRole, ChatRecord
+from src.schemas.ask_req import AskRequest
 
 templates = Jinja2Templates(directory="src/template")
 
@@ -25,32 +26,39 @@ router = APIRouter()
 @router.post("/convo", response_class=StreamingResponse)
 async def convo(
     request: Request,
-    prompt: GenerationRequest = Depends(query_middleware.validate_query),
+    prompt: AskRequest = Depends(query_middleware.validate_query),
     db_session: Session = Depends(db_middleware.get_db_session)
 ) -> HTMLResponse:
     """Back and forth messaging with history"""
 
     logger.info("Received CONVO request from %s: %s", request.client, prompt.query)
-    # TODO query_cache: LRUCache = request.app.state.query_cache
-    responses: [str] = []
-    async for part in chat.model_chat(prompt.query):
-        # TODO send chunks as they arrive
-        responses.append(part)
-
-    # store and cache for reuse
-    query_log_record = generation_record.create_query_log(
+    logger.debug("Recording user message: %s", prompt.query)
+    user_msg_record: ChatRecord = chat_record.create_record(
         db_session,
-        prompt.query,
-        response_text="".join(responses),
+        chat_id=...,
+        author=AuthorRole.USER,
+        message=prompt.query,
     )
-    if query_log_record is None:
+    logger.debug("Submitting messages to the model: %s", prompt.query)
+    bot_msg_chunks: [str] = []
+    async for response_chunk in chat.model_chat(prompt.query):
+        # accumulate chunks to persist history
+        # TODO send chunks out as they arrive
+        bot_msg_chunks.append(response_chunk)
+    logger.debug("Recording user message: %s", prompt.query)
+    bot_msg_record: ChatRecord = chat_record.create_record(
+        db_session,
+        chat_id=...,
+        author=AuthorRole.BOT,
+        message="".join(bot_msg_chunks),
+    )
+    if bot_msg_record is None:
         logger.error('Failed to save new query record for "%s"', prompt.query)
         raise RuntimeError("failed to persist query for later")
-    # TODO query_cache.put(prompt.query, query_log_record)
-    query_log_record.clickable = False
-
+    logger.debug("Templating chat response: %s", prompt.query)
     return templates.TemplateResponse(
-        "log_entry.html", {
+        "chat_entry.html", {
             "request": request,
-            "entry": query_log_record,
+            "user_msg": user_msg_record,
+            "bot_msg": bot_msg_record,
         })

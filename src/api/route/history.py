@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 import src.api.middleware.db_session as db_middleware
-from src.db import generation_record
+from src.db.tables import ask_record
 
 templates = Jinja2Templates(directory="src/template")
 
@@ -31,7 +31,7 @@ async def history(
         raise ValueError("query_id is required")
     if isinstance(query_id, int) is False or query_id < 1:
         raise ValueError("query_id must be positive integer")
-    query_log_record = generation_record.get_record(db_session, query_id=query_id)
+    query_log_record = ask_record.get_record(db_session, query_id=query_id)
     if query_log_record is None:
         raise HTTPException(
             status_code=555,
@@ -40,7 +40,7 @@ async def history(
         )
 
     return templates.TemplateResponse(
-        "log_entry.html", {
+        "ask_entry.html", {
             "request": request,
             "entry": query_log_record,
         })

@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 from pydantic import ValidationError
 
-from src.ollama.ask_models import GenerationRequest, GenerationResponse, GenerationResponseComplete
+from src.ollama.ask_models import AskRequest, AskResponse, AskResponseComplete
 
 LONG_STRING_130: str = "very long text, i repeat, " * 5
 assert len(LONG_STRING_130) == 130
@@ -17,7 +17,7 @@ class TestGenerationModels(unittest.TestCase):
             "model": "deepseek-r1:1.5b",
             "prompt": "same here"
         }
-        req = GenerationRequest(**valid_data)
+        req = AskRequest(**valid_data)
         self.assertEqual(req.model, valid_data["model"])
         self.assertEqual(req.prompt, valid_data["prompt"])
 
@@ -27,7 +27,7 @@ class TestGenerationModels(unittest.TestCase):
             "prompt": "some unimportant valid text",
         }
         with self.assertRaises(ValidationError):
-            GenerationRequest(**invalid_data)
+            AskRequest(**invalid_data)
 
     def test_generation_request_fail_prompt_too_long(self):
         invalid_data = {
@@ -35,7 +35,7 @@ class TestGenerationModels(unittest.TestCase):
             "prompt": LONG_STRING_1170,
         }
         with self.assertRaises(ValidationError):
-            GenerationRequest(**invalid_data)
+            AskRequest(**invalid_data)
 
     def test_generation_response_success(self):
         iso_string = "2024-07-30T14:30:00"
@@ -46,7 +46,7 @@ class TestGenerationModels(unittest.TestCase):
             "response": "some chars, numbers, punctuation...",
             "done": False
         }
-        resp = GenerationResponse(**valid_data)
+        resp = AskResponse(**valid_data)
         self.assertEqual(resp.model, valid_data["model"])
         self.assertTrue(isinstance(resp.created_at, datetime))
         self.assertEqual(dt_object, resp.created_at)
@@ -61,7 +61,7 @@ class TestGenerationModels(unittest.TestCase):
             "done": False
         }
         with self.assertRaises(ValidationError):
-            GenerationResponse(**invalid_data)
+            AskResponse(**invalid_data)
 
     def test_generation_response_complete_success(self):
         valid_data = {
@@ -78,7 +78,7 @@ class TestGenerationModels(unittest.TestCase):
             "eval_count": 10,
             "eval_duration": 500_000_000        # 0.5 seconds
         }
-        complete_resp = GenerationResponseComplete(**valid_data)
+        complete_resp = AskResponseComplete(**valid_data)
         self.assertEqual(complete_resp.model, valid_data["model"])
         self.assertTrue(isinstance(complete_resp.created_at, datetime))
         self.assertEqual(complete_resp.done_reason, valid_data["done_reason"])
@@ -99,7 +99,7 @@ class TestGenerationModels(unittest.TestCase):
             # Missing done_reason, context, durations, counts
         }
         with self.assertRaises(ValidationError):
-            GenerationResponseComplete(**invalid_data)
+            AskResponseComplete(**invalid_data)
 
     def test_generation_response_complete_fail_invalid_duration(self):
         invalid_data = {
@@ -117,7 +117,7 @@ class TestGenerationModels(unittest.TestCase):
             "eval_duration": 500_000_000
         }
         with self.assertRaises(ValidationError):
-            GenerationResponseComplete(**invalid_data)
+            AskResponseComplete(**invalid_data)
 
 if __name__ == '__main__':
     unittest.main()

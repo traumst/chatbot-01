@@ -3,7 +3,7 @@
 from pydantic import BaseModel, field_validator, Field
 
 
-class GenerationRequest(BaseModel):
+class AskRequest(BaseModel):
     """Request format accepted by the API"""
 
     query: str = Field(..., min_length=5, max_length=128)

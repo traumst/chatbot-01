@@ -1,9 +1,11 @@
+"""Response format returned from the Generate API"""
+
 from datetime import datetime
 from pydantic import BaseModel
 
 
-class GenerationResponse(BaseModel):
-    """Response format returned from the API"""
+class AskResponse(BaseModel):
+    """Expected response format"""
 
     id: int
     response: str = None
