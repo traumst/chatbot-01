@@ -15,7 +15,8 @@ class TestGenerationModels(unittest.TestCase):
     def test_generation_request_success(self):
         valid_data = {
             "model": "deepseek-r1:1.5b",
-            "prompt": "same here"
+            "prompt": "same here",
+            "options": None
         }
         req = AskRequest(**valid_data)
         self.assertEqual(req.model, valid_data["model"])
