@@ -39,4 +39,4 @@ async def home(
         logs[0] = ask_record.get_record(db_session, logs[0].id)
         logs[0].clickable = False
 
-    return templates.TemplateResponse("home.html", {"request": request, "logs": logs})
+    return templates.TemplateResponse("home.j2", {"request": request, "logs": logs})

@@ -62,7 +62,7 @@ async def ask(
     if ask_history_record is not None:
         ask_history_record.clickable = False
         return templates.TemplateResponse(
-            "ask_entry.html", {
+            "ask_entry.j2", {
                 "request": request,
                 "entry": ask_history_record
         })
@@ -89,7 +89,7 @@ async def ask(
     ask_history_record.clickable = False
 
     return templates.TemplateResponse(
-        "ask_entry.html", {
+        "ask_entry.j2", {
             "request": request,
             "entry": ask_history_record,
         })

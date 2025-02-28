@@ -40,7 +40,7 @@ async def history(
         )
 
     return templates.TemplateResponse(
-        "ask_entry.html", {
+        "ask_entry.j2", {
             "request": request,
             "entry": query_log_record,
         })

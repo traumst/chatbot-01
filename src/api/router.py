@@ -6,7 +6,7 @@ from logging import Logger
 from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 
-from src.api.route import home, ask, convo, history, favicon
+from src.api.route import home, ask, chat, history, favicon
 from src.utils.lru_cache import LRUCache
 
 templates = Jinja2Templates(directory="src/template")
@@ -20,7 +20,7 @@ def init_fastapi_with_router(query_cache: LRUCache) -> FastAPI:
     app.state.query_cache = query_cache # type: ignore[attr-defined]
     app.include_router(home.router)
     app.include_router(ask.router)
-    app.include_router(convo.router)
+    app.include_router(chat.router)
     app.include_router(history.router)
     app.include_router(favicon.router)
     # api/middleware/todo.py

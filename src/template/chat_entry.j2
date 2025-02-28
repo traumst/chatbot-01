@@ -1,0 +1,15 @@
+<div id="chat-entry-{{ entry.id }}"
+     class="chat-entry slide-down
+{% if entry.role == AuthorRole.USER %}
+        bg-yellow-600
+{% elif entry.role == AuthorRole.USER %}
+        bg-blue-500
+{% endif %}
+        flex flex-col
+        m-2 p-2
+        rounded-xl shadow"
+>
+    <div class="flex flex-row m-1 p-1">{{ entry.created_at }}</div>
+    <div class="flex flex-row m-1 p-1">Author: <strong>{{ entry.author }}</strong></div>
+    <div class="flex flex-row m-1 p-1">Message: <strong>{{ entry.message }}</strong></div>
+</div>
