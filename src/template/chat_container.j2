@@ -1,0 +1,14 @@
+<div id="chat-container-{{ chat.id }}"
+     class="container slide-down
+        flex flex-col
+        m-2 p-2
+        first:bg-blue-600 bg-yellow-700
+        rounded-xl shadow"
+>
+    {% for message in chat.messages %}
+        {% with entry=message %}
+            {% include 'chat_entry.j2' %}
+        {% endwith %}
+    {% endfor %}
+  <hr />
+</div>

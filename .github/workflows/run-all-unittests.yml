@@ -20,16 +20,13 @@ permissions:
 
 jobs:
   build:
+    name: all unittests pass
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event_name == 'workflow_dispatch' 
-            ? github.event.inputs.branch 
-            : github.event_name == 'pull_request' 
-              ? github.event.pull_request.head.ref 
-              : github.ref }}
+        ref: "${{ github.event.inputs.branch || github.event.pull_request.head.ref || github.ref }}"
 
     - name: Set up Python 3.13
       uses: actions/setup-python@v3
@@ -41,4 +38,4 @@ jobs:
         pip install -r requirements.txt
     - name: Test with pytest
       run: |
-        python -m unittest -v src/**/*test*.py
+        python -m unittest -v src/**/test_*.py

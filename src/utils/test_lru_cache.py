@@ -1,5 +1,5 @@
 from unittest import TestCase
-from lru_cache import LRUCache
+from src.utils.lru_cache import LRUCache
 
 class TestObj:
     some: str

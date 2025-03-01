@@ -173,3 +173,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 test.db
+
+# ALL intellij files
+.run/
+# Local copy of htmx, tailwind, etc.
+local/
