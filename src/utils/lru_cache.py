@@ -84,7 +84,7 @@ class LRUCache(BaseModel):
         """pushing one too many elements triggers purge"""
         if not self.__has_vacancy__():
             change = self.__purge__()
-            logger.info(f"purged from {change[0]} to {change[1]}")
+            logger.info("purged from %s to %s", change[0], change[1])
 
         if key in self.dic:
             item: LRUItem = self.dic[key]

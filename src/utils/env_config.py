@@ -8,14 +8,18 @@ env_cache: LRUCache = LRUCache(8, 1/4)
 logger = logging.getLogger(__name__)
 
 class EnvConfig(BaseModel):
+    """Configuration defined by .env file"""
+
     host: str = "0.0.0.0"
-    port: int  = 7654
+    port: int  = 8080
     cache_size: int = 8
     log_level: int = logging.INFO
     db_conn_str: str = ""
     model_name: str = ""
     model_url: HttpUrl = None
 
+    def __str__(self) -> str:
+        return self.model_dump_json(indent=2)
 
     def assign_env_value(self, kv_line: str) -> None:
         """
@@ -26,8 +30,7 @@ class EnvConfig(BaseModel):
         if config_line.startswith("#"):
             return
 
-        print(f"reading conf\t\t{config_line}")
-        [key, val] = kv_line.split("=", 1)
+        [key, val] = config_line.split("=", 1)
         conf_key = key.lower()
         conf_val = val.strip().strip("\"").strip()
         if conf_key.endswith(","):
@@ -62,29 +65,22 @@ class EnvConfig(BaseModel):
                 print(f"Unsupported env config key, {key}={val}")
 
 def read_env() -> EnvConfig | None:
+    """serves env config from either cache or reads from .env"""
+
     conf: EnvConfig | None = env_cache.get("envConfig")
     if conf is not None and conf.cache_size > 0:
-        logger.info(f"env conf from cache:\t{conf}")
+        logger.info("envConfig from cache:\t%s", conf)
         return conf
 
     conf = EnvConfig()
-    file = open(".env", "r")
-    try:
+    with open(".env", "r", encoding="utf-8") as file:
         for line in file:
             conf.assign_env_value(line)
-    finally:
-        file.close()
-    # this should do the same without try,
-    #   but does not work for some reason
-    # with open(".env", "r") as file:
-    #     for line in file:
-    #         conf.assign_env_config(line)
     assert conf.cache_size > 0
     assert conf.host.strip() != ""
     assert conf.port > 0
     assert conf.log_level >= 0
+    logger.info("env conf loaded:\t%s", conf)
     env_cache.put("envConfig", conf)
-
-    logger.info(f"env conf loaded:\t{conf}")
 
     return conf

@@ -5,14 +5,10 @@
         first:bg-blue-600 bg-yellow-700
         rounded-xl shadow"
 >
-    {% for entry in chat.log %}
-        {% with entry=entry %}
+    {% for message in chat.messages %}
+        {% with entry=message %}
             {% include 'chat_entry.j2' %}
         {% endwith %}
     {% endfor %}
-    <div class=" lex flex-row m-1 p-1">{{ entry.created_at }}</div>
-    <div class="flex flex-row m-1 p-1">Author: <strong>{{ entry.author }}</strong></div>
-    <div class="flex flex-row m-1 p-1">Message: <strong>{{ entry.message }}</strong></div>
-    
   <hr />
 </div>

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class MessageRole(str, Enum):
     """Which side of the chat said what"""
     USER = 'user'
-    BOT = 'bot'
+    BOT = 'assistant'
 
 
 class RawMessage(BaseModel):

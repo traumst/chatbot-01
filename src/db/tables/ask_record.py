@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+
 class AskRecord(Base):
     """Represents request-response pair"""
 

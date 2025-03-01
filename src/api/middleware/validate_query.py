@@ -17,7 +17,4 @@ def validate_query(query_text: str = Form(...)) -> Generator[AskRequest, None, N
         yield AskRequest(query=query_text)
     except (ValueError, ValidationError) as e:
         logger.error("Query validation failed, %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid query: {e}"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST) from e

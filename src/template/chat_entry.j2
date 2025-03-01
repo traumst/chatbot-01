@@ -1,11 +1,13 @@
 <div id="chat-entry-{{ entry.id }}"
      class="chat-entry slide-down
+        flex flex-col
 {% if entry.role == AuthorRole.USER %}
+        left-0
         bg-yellow-600
 {% elif entry.role == AuthorRole.USER %}
+        right-0
         bg-blue-500
 {% endif %}
-        flex flex-col
         m-2 p-2
         rounded-xl shadow"
 >

@@ -2,7 +2,7 @@
 <html>
   <head>
     <title>Query Tracker</title>
-    <!-- Include htmx nad tailwind from CDN -->
+    <!-- Include htmx and Tailwind from CDN -->
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <style>
@@ -17,86 +17,156 @@
           opacity: 1;
         }
       }
-      /* slide new query down animation */
       .slide-down {
         animation: slideDown .7s ease-out;
       }
-      /* slide new query down animation */
       #query_log {
         transition: margin .7s ease, padding .5s ease;
       }
+      /* Utility class to hide sections */
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
-  <body class="bg-gray-500  flex flex-col">
-    <h1 class="">Welcome to Query Tracker</h1>
+  <body class="bg-gray-500 flex flex-col">
+    <h1>Welcome to Query Tracker</h1>
 
-    <!-- submit query using htmx on click or on enter(keyCode=13) -->
-<!--    TODO shift-enter nosend, new line instead -->
-    <div
-      class="flex flex-row m-2 p-2"
-      hx-post="/ask"
-      hx-trigger="keyup[keyCode==13] from:#query_text, click from:#query_submit_btn"
-      hx-include="#query_text"
-      hx-target="#query_log"
-      hx-swap="afterbegin"
-    >
-      <label for="query_text" class="pr-5 bg-indigo-400 p-3 rounded-lg">Ask model:</label>
-      <input
-        type="text"
-        name="query_text"
-        id="query_text"
-        placeholder="Enter your query"
-        minlength="5"
-        maxlength="128"
-        required
-        class="w-full bg-indigo-400 p-3 rounded-lg"
-      />
-      <button
-        id="query_submit_btn"
-        type="submit"
-        hx-indicator="#spinner"
-        class="w-10% bg-indigo-500 p-3 rounded-lg"
-      >
-        Send
+    <!-- Toggle Buttons -->
+    <div class="flex m-2 p-2 space-x-4">
+      <button id="ask_toggle" onclick="showSection('ask')" class="bg-indigo-400 p-3 rounded-lg">
+        Ask
+      </button>
+      <button id="chat_toggle" onclick="showSection('chat')" class="bg-indigo-400 p-3 rounded-lg">
+        Chat
       </button>
     </div>
+
+    <!-- Ask Section (visible by default) -->
+    <div id="ask_section" class="section flex flex-col">
+      <div class="flex flex-row m-2 p-2"
+           hx-post="/ask"
+           hx-trigger="keyup[keyCode==13][shiftKey==false] from:#ask_query_text, click from:#ask_submit_btn"
+           hx-include="#ask_query_text"
+           hx-target="#query_log"
+           hx-swap="afterbegin">
+        <label for="ask_query_text" class="pr-5 bg-indigo-400 p-3 rounded-lg">Ask model:</label>
+        <input type="text"
+               name="query_text"
+               id="ask_query_text"
+               placeholder="Enter your query"
+               minlength="5"
+               maxlength="128"
+               required
+               class="w-full bg-indigo-400 p-3 rounded-lg" />
+        <button id="ask_submit_btn"
+                type="submit"
+                hx-indicator="#spinner"
+                class="w-10% bg-indigo-500 p-3 rounded-lg">
+          Send
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Section (hidden by default) -->
+    <div id="chat_section" class="section flex flex-col hidden">
+      <div class="flex flex-col m-2 p-2"
+           hx-post="/chat"
+           hx-trigger="keyup[keyCode==13][shiftKey==false] from:#chat_query_text, click from:#chat_submit_btn"
+           hx-include="#chat_query_text, #chat_id_input"
+           hx-target="#query_log"
+           hx-swap="afterbegin">
+        <input type="number"
+               name="chat_id"
+               id="chat_id_input"
+               placeholder="Chat ID"
+               required
+               class="w-1/5 bg-indigo-400 p-3 rounded-lg ml-2" />
+        <input type="text"
+               name="query_text"
+               id="chat_query_text"
+               placeholder="Enter your message"
+               minlength="5"
+               maxlength="128"
+               required
+               class="w-full bg-indigo-400 p-3 rounded-lg" />
+        <button id="chat_submit_btn"
+                type="submit"
+                hx-indicator="#spinner"
+                class="w-10% bg-indigo-500 p-3 rounded-lg">
+          Send
+        </button>
+      </div>
+    </div>
+
     <script>
-      // Check form validity
+      // Toggle sections based on the chosen mode.
+      function showSection(section) {
+        if (section === 'ask') {
+          document.getElementById('ask_section').classList.remove('hidden');
+          document.getElementById('chat_section').classList.add('hidden');
+        } else if (section === 'chat') {
+          document.getElementById('chat_section').classList.remove('hidden');
+          document.getElementById('ask_section').classList.add('hidden');
+        }
+      }
+
+      // Validate input fields before sending request
       document.body.addEventListener("htmx:configRequest", function(evt) {
-        if(evt.target.matches("#query_text")) {
-          const input = document.getElementById("query_text");
+        if (evt.target.matches("#ask_query_text, #chat_query_text")) {
+          const input = evt.target;
           if (input && !input.checkValidity()) {
             evt.preventDefault();
             input.reportValidity();
           }
         }
       });
-      // Disable button while request is processing
+
+      // Disable the submit buttons during processing
       document.body.addEventListener('htmx:beforeRequest', function(evt) {
-        if(evt.target.matches("#query_text")) {
-          document.getElementById('query_submit_btn').disabled = true;
+        if(evt.target.matches("#ask_query_text, #chat_query_text")) {
+          if (evt.target.id === 'ask_query_text') {
+            document.getElementById('ask_submit_btn').disabled = true;
+          } else {
+            document.getElementById('chat_submit_btn').disabled = true;
+          }
         }
       });
-      // Re-enable button when request completes
+
+      // Re-enable the submit buttons after processing
       document.body.addEventListener('htmx:afterRequest', function(evt) {
-        if(evt.target.matches("#query_text")) {
-          document.getElementById('query_submit_btn').disabled = false;
+        if(evt.target.matches("#ask_query_text, #chat_query_text")) {
+          if (evt.target.id === 'ask_query_text') {
+            document.getElementById('ask_submit_btn').disabled = false;
+          } else {
+            document.getElementById('chat_submit_btn').disabled = false;
+          }
         }
       });
-      function resetInput() {
-        document.querySelector("#query_text").value = "";
+
+      // Reset input fields after a request is processed
+      function resetInput(evt) {
+        if (evt.target.matches("#ask_query_text")) {
+          document.querySelector("#ask_query_text").value = "";
+        } else if (evt.target.matches("#chat_query_text")) {
+          document.querySelector("#chat_query_text").value = "";
+        }
       }
-      // reset after submission
       document.addEventListener('htmx:afterRequest', resetInput);
-      // reset on page load
-      resetInput();
+
+      // Reset inputs on page load
+      document.addEventListener("DOMContentLoaded", function() {
+        document.querySelector("#ask_query_text").value = "";
+        document.querySelector("#chat_query_text").value = "";
+      });
     </script>
 
+    <!-- Query log remains shared between both sections -->
     <div id="query_log" class="flex flex-col flex-grow m-2 p-2">
       Previous queries:
       {% for entry in logs %}
         {% if entry.clickable == True %}
-
+          <!-- Render clickable entry if needed -->
         {% else %}
           {% include 'ask_entry.j2' %}
         {% endif %}

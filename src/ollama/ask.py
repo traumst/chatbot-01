@@ -43,10 +43,10 @@ async def _model_generate(
 
     :raises ValueError: if json parsing or validation fails
     """
+    generate_url = f"{conf.model_url}api/generate"
+    logger.debug("Generating via url '%s' on prompt %s", generate_url, prompt)
     async with httpx.AsyncClient() as client:
-        async with client.stream(
-            "POST",
-            f"{conf.model_url}api/generate",
+        async with client.stream("POST", generate_url,
             json=AskRequest(model=conf.model_name, prompt=prompt, options=None).model_dump()
         ) as response:
             # iterate over lines as they come
@@ -56,7 +56,7 @@ async def _model_generate(
                     continue
                 try:
                     parsed_response: AskResponse = _parse_line(line)
-                    print(f"raw model response {parsed_response.response=}")
+                    logger.debug("raw model response %s", parsed_response.response)
                     yield parsed_response
                 except ValueError as e:
                     logger.error("Failed to parse response chunk: %s, %s", line, e)
